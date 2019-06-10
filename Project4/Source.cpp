@@ -30,13 +30,12 @@ vector<string> classes;
 bool ok;
 bool tracker_isactive;
 
-
-static double diffclock(clock_t clock1, clock_t clock2)
-{
-	double diffticks = clock1 - clock2;
-	double diffms = (diffticks) / (CLOCKS_PER_SEC / 1000);
-	return diffms;
-}
+//static double diffclock(clock_t clock1, clock_t clock2)
+//{
+//	double diffticks = clock1 - clock2;
+//	double diffms = 1000 * diffticks / CLOCKS_PER_SEC;
+//	return diffms;
+//}
 
 void draw_boxes(cv::Mat& mat_img, std::vector<bbox_t> result_vec) {
 
@@ -68,11 +67,23 @@ void draw_boxes(cv::Mat& mat_img, std::vector<bbox_t> result_vec) {
 //	}
 //}
 
-int main(int argc, char** argv)
+//int main(int argc, char** argv)
+int main()
 {
-	Detector detector(argv[1], argv[2]);
+	// FOR WEBCAM 
+	cv::VideoCapture cap(0); // open the default camera
+	if (!cap.isOpened())  // check if we succeeded
+	{
+		cout << "Webcam not detected" << endl;
+		cv::waitKey(3000);
+		return -1;
+	}
 
-	string classesFile = argv[3];
+	//Detector detector(argv[1], argv[2]);
+	Detector detector("inoshishi_tiny.cfg", "inoshishi_tiny.weights");
+
+	//string classesFile = argv[3];
+	string classesFile = "inoshishi.names";
 	ifstream ifs(classesFile.c_str());
 	string line;
 	while (getline(ifs, line)) classes.push_back(line);
@@ -80,7 +91,7 @@ int main(int argc, char** argv)
 	if (classes.empty())
 	{
 		cout << "Classes not found" << endl;
-		return 1;
+		return -1;
 	}
 
 	// FOR VIDEO
@@ -103,19 +114,11 @@ int main(int argc, char** argv)
 	//	return 0;
 	//}
 
-	// FOR WEBCAM 
 
-	string outputFile = "webcam_output.avi";
-	cv::VideoCapture cap(0); // open the default camera
-	if (!cap.isOpened())  // check if we succeeded
-	{
-		cout << "failed" << endl;
-		cv::waitKey(3000);
-		return -1;
-	}
-	cv::Mat frame, framegray;
+	
 	//activate to record video
 	//cv::VideoWriter video;
+	//string outputFile = "webcam_output.avi";
 	// Get the video writer initialized to save the output video
 	//video.open(outputFile, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), 60, cv::Size(cap.get(cv::CAP_PROP_FRAME_WIDTH), cap.get(cv::CAP_PROP_FRAME_HEIGHT)));
 
@@ -123,7 +126,8 @@ int main(int argc, char** argv)
 	cv::Ptr<cv::Tracker> tracker;
 	tracker_isactive = false;
 	cv::Rect2d roi;
-
+	
+	cv::Mat frame;
 	int chanceframes = 0;
 
 	while (cv::waitKey(30) < 0)
@@ -134,18 +138,18 @@ int main(int argc, char** argv)
 		cap >> frame;
 		if (frame.empty()) {
 			cout << "Done processing !!!" << endl;
-			cout << "Output file is stored as " << outputFile << endl;
+			cout << "Output file is stored as webcam_output.avi" << endl;
 			cv::waitKey(3000);
 			break;
 		}
-
+		//cv::cvtColor(framegray, frame, cv::COLOR_RGB2GRAY);
 		std::vector<bbox_t> result_vec = detector.detect(frame, 0.2);
 
 		if (!result_vec.empty()) {
 
 			draw_boxes(frame, result_vec);
 
-			cv::Rect2d roi((float)result_vec[0].x, (float)result_vec[0].y, (float)result_vec[0].w, (float)result_vec[0].h);
+			roi = cv::Rect2d((float)result_vec[0].x, (float)result_vec[0].y, (float)result_vec[0].w, (float)result_vec[0].h);
 			tracker = cv::TrackerKCF::create();
 			tracker->init(frame, roi);
 
@@ -173,6 +177,11 @@ int main(int argc, char** argv)
 					}
 					
 				}
+			}
+			else
+			{
+				// Tracker deactivated
+				cv::putText(frame, "NOT detecting - Tracker deactivated", cv::Point(50, 130), cv::FONT_HERSHEY_SIMPLEX, 0.75, cv::Scalar(255, 0, 0), 2);
 			}
 		}
 		
